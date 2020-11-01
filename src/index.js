@@ -1,66 +1,142 @@
-const { hasReceivedPayment } = require('./blockchain')
-
 const bjs = require('bitcoinjs-lib')
+const networks = require('./utils/networks')
+const bip32 = require('bip32')
 const level = require('level')
 const { v4: NewID } = require('uuid')
 const EventEmitter = require('events');
 
-const INVOICE_EMITTER = {}
-const INTERVALS = {}
-
 class Invoice {
-  constructor (id, address, amount, expiration) {
+  constructor (id, address, amount, expiration, requiredConfirmations) {
     this.id = id
     this.address = address
     this.amount = amount
     this.expiration = expiration
+    this.requiredConfirmations = requiredConfirmations
+    this.status = 'ACTIVE'
   }
 }
 
-class PayServer {
-  constructor (xpub, network) {
-    this.xpub = xpub
-    this.network = bjs.networks[network]
-    this.invoice_db = level('btc-invoice-server-invoices', { valueEncoding: 'json' })
-    this.history_db = level('btc-invoice-server-history', { valueEncoding: 'json' })
+class PayServer extends EventEmitter {
+  constructor (xpub, network, blockchainClient) {
+    super()
+    this.network = networks[network] // TODO: Bech32only
+    this.baseNode = bip32.fromBase58(xpub, this.network)
+    this.blockchainClient = blockchainClient
+    this.invoice_db = level('db-invoices', { valueEncoding: 'json' })
+    this.history_db = level('db-history', { valueEncoding: 'json' })
+    this.addresses_db = level('db-addresses', { valueEncoding: 'json' })
+    this.intervals = {}
   }
 
-  async archiveInvoice (invoice, status) {
-    // TODO: also archive other details, tx hash, sender etc.
-    clearInterval(INTERVALS[invoice.id])
-    delete INTERVALS[invoice.id]
-    await this.history_db.put(invoice.id, { ...invoice, status })
+  async start() {
+    try {
+      await this.addresses_db.get('used')
+    } catch (e) {
+      if (e.type == 'NotFoundError') {
+        await this.addresses_db.put('used', [])
+      } else throw e
+    }
+    return new Promise((resolve, reject) => {
+      this.invoice_db.createValueStream()
+      .on('data', (invoice) => {
+        this.watchInvoice(invoice)
+      })
+      .on ('end', () => {
+        resolve()
+      })
+    })
+  }
+
+  async isAddressInUse (address) {
+    const usedAddresses = await this.addresses_db.get('used')
+    return usedAddresses.includes(address)
+  }
+
+  async getNewAddress () {
+    // TODO: choose address type
+    for(let i = 0; ;i++) {
+      const publicKey = this.baseNode.derive(0).derive(i).publicKey
+      const address = bjs.payments.p2wpkh({ pubkey: publicKey, network: this.network }).address
+
+      if (await this.isAddressInUse(address)) continue
+      const received = await this.blockchainClient.getReceivedByAddress(address, 0)
+      if (!received || received === 0) {
+        return address
+      }
+    }
+  }
+
+  async archiveInvoice (invoice) {
+    if (invoice.id in this.intervals) {
+      clearInterval(this.intervals[invoice.id])
+      delete this.intervals[invoice.id]
+    }
+    if (invoice.status === 'EXPIRED') {
+      this.removeUsedAddress(invoice.address)
+    }
+    await this.history_db.put(invoice.id, invoice)
     await this.invoice_db.del(invoice.id)
   }
 
   async checkInvoice (id) {
     const invoice = await this.invoice_db.get(id)
-    if (await hasReceivedPayment(invoice.address, invoice.amount, true)) {
-      INVOICE_EMITTER[invoice.id].emit('payment_received', invoice)
-      await this.archiveInvoice(invoice, 'RECEIVED')
+    const received = await this.blockchainClient.getReceivedByAddress(invoice.address, invoice.requiredConfirmations)
+    if (received >= invoice.amount) {
+      invoice.status = 'RECEIVED'
+      this.emit('payment_received', invoice)
+      // TODO: also add other details, tx hash, sender etc.
+      await this.archiveInvoice(invoice)
+      return true
     }
     if (Date.now() > invoice.expiration) {
-      // TODO: emit expired
-      await this.history_db.put(invoice.id, { ...invoice, status: 'EXPIRED' })
+      invoice.status = 'EXPIRED'
+      this.emit('invoice_expired', invoice)
+      await this.archiveInvoice(invoice)
+      return true
     }
+    return false
   }
 
-  async updateInvoice (invoice) {
-    return this.invoice_db.put(invoice.id, invoice)
+  async addUsedAddress (address) {
+    const usedAddresses = await this.addresses_db.get('used')
+    usedAddresses.push(address)
+    await this.addresses_db.put('used', usedAddresses)
+  }
+
+  async removeUsedAddress (address) {
+    const usedAddresses = await this.addresses_db.get('used')
+    usedAddresses.splice(usedAddresses.indexOf(address), 1)
+    await this.addresses_db.put('used', usedAddresses)
+  }
+
+  async addInvoice (invoice) {
+    await this.addUsedAddress(invoice.address)
+    await this.invoice_db.put(invoice.id, invoice)
+  }
+
+  async watchInvoice (invoice) {
+    const resolved = await this.checkInvoice(invoice.id)
+    if (resolved) return
+
+    this.intervals[invoice.id] = setInterval(() => {
+      this.checkInvoice(invoice.id)
+    }, 1000)
   }
 
   // TODO: derive dynamically address
-  async newInvoice (address, amount, mins) {
+  async newInvoice (options) {
+    const defaults = {
+      secs: 3600,
+      requiredConfirmations: 1
+    }
+    options = Object.assign({}, defaults, options);
     const id = NewID()
-    const expiration = Date.now() + (mins * 60 * 1000)
-    const invoice = new Invoice(id, address, amount, expiration)
-    await this.updateInvoice(invoice)
-    INTERVALS[invoice.id] = setInterval(() => {
-      this.checkInvoice(invoice.id)
-    }, 1000)
-    const emitter = new EventEmitter()
-    INVOICE_EMITTER[invoice.id] = emitter
-    return { ...invoice, events: emitter }
+    const address = await this.getNewAddress()
+    const expiration = Date.now() + (options.secs * 1000)
+    const invoice = new Invoice(id, address, options.amount, expiration, options.requiredConfirmations)
+    await this.addInvoice(invoice)
+    await this.watchInvoice(invoice)
+    return invoice
   }
 }
 
