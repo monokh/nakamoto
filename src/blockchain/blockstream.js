@@ -9,20 +9,20 @@ class BlockstreamClient {
     return (await axios.get(`${this.url}/blocks/tip/height`)).data
   }
   
-  async getReceivedByAddress (address, reqConfs) {
+  async getAddressTransactions (address) {
     const height = await this.getBlockHeight()
     const txs = (await axios.get(`${this.url}/address/${address}/txs`)).data
-    let received = 0
-    txs.forEach(tx => {
+    return txs.map(tx => {
       const confirmations = tx.status.confirmed ? height - tx.status.block_height : 0
-      if (confirmations >= reqConfs) {
-        const output = tx.vout.find(vout => vout.scriptpubkey_address === address)
-        received += output.value
+      const output = tx.vout.find(vout => vout.scriptpubkey_address === address)
+      return {
+        hash: tx.hash,
+        confirmations,
+        amount: output.value / 1e8
       }
     })
-    return received / 1e8
   }
 }
 
 
-module.exports = { BlockstreamClient }
+module.exports = BlockstreamClient

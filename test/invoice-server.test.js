@@ -1,13 +1,8 @@
-// String to be appended to bitcoin.conf:
-// rpcauth=admin:7778210eb8132a44c262b405fa8b00ee$2c906d8c35ae72efcc974b7849a417041bf23a1acece2a64697e36c9d44fa096
-// Your password:
-// bWyceVZJZZxjtypCXimHFMGDmrO19ZV-g8cud7vMX-E=
-
 const assert = require('assert');
-const fs = require('fs')
-const RpcClient = require('../src/utils/rpcClient')
-const { PayServer } = require('../src')
-const { BitcoindClient } = require('../src/blockchain/bitcoind')
+const RpcClient = require('../src/utils/rpc-client')
+const { INVOICE_STATUS } = require('../src/invoice')
+const InvoiceServer = require('../src/invoice-server')
+const BitcoindClient = require('../src/blockchain/bitcoind')
 
 const RPC_URL = 'http://localhost:18443'
 const RPC_USER = 'admin'
@@ -31,15 +26,9 @@ async function mineBlocks (n) {
   await rpc.call('generatetoaddress', n, newAddress)
 }
 
-function resolvePayment (server) {
+function resolveInvoiceStatus (server, status) {
   return new Promise((resolve, reject) => {
-    server.on('payment_received', (invoice) => { resolve(invoice) })
-  })
-}
-
-function resolveExpiration (server) {
-  return new Promise((resolve, reject) => {
-    server.on('invoice_expired', (invoice) => { resolve(invoice) })
+    server.on('invoice_update', (invoice) => { if (invoice.status === status) resolve(invoice) })
   })
 }
 
@@ -57,7 +46,7 @@ describe('Pay Server', function() {
       await Promise.all(DBS.map(db => server[db].clear()))
       await Promise.all(DBS.map(db => server[db].close()))
     }
-    server = new PayServer(XPUB, NETWORK, blockchainClient)
+    server = new InvoiceServer(XPUB, NETWORK, blockchainClient)
     await server.start()
   })
 
@@ -80,24 +69,36 @@ describe('Pay Server', function() {
     assert.strictEqual(reusingInvoice.address, expiredInvoice.address)
   })
 
-  it('Invoice resolves when payment received', async () => {
-    const receivedPromise = resolvePayment(server)
+  it('Invoice calls receive when payment tx received (0 confs)', async () => {
+    const receivedPromise = resolveInvoiceStatus(server, INVOICE_STATUS.PAYMENT_RECEIVED)
+    const confirmedPromise = resolveInvoiceStatus(server, INVOICE_STATUS.PAYMENT_CONFIRMED)
+    const invoice = await server.newInvoice({ amount: 0.00001 })
+    await rpc.call('sendtoaddress', invoice.address, 0.00001)
+    const receivedInvoice = await receivedPromise
+    assert.strictEqual(receivedInvoice.status, INVOICE_STATUS.PAYMENT_RECEIVED)
+    await mineBlocks(1)
+    const confirmedInvoice = await confirmedPromise
+    assert.strictEqual(confirmedInvoice.status, INVOICE_STATUS.PAYMENT_CONFIRMED)
+  })
+
+  it('Invoice completes when payment confirmed', async () => {
+    const confirmedPromise = resolveInvoiceStatus(server, INVOICE_STATUS.PAYMENT_CONFIRMED)
     const invoice = await server.newInvoice({ amount: 0.00001 })
     await rpc.call('sendtoaddress', invoice.address, 0.00001)
     await mineBlocks(1)
-    const receivedInvoice = await receivedPromise
-    assert.strictEqual(receivedInvoice.status, 'RECEIVED')
+    const confirmedInvoice = await confirmedPromise
+    assert.strictEqual(confirmedInvoice.status, INVOICE_STATUS.PAYMENT_CONFIRMED)
   })
 
   it('Invoice expires when payment not received', async () => {
-    const expiredPromise = resolveExpiration(server)
+    const expiredPromise = resolveInvoiceStatus(server, INVOICE_STATUS.EXPIRED)
     await server.newInvoice({ amount: 0.00001, secs: 2 })
     const expiredInvoice = await expiredPromise
-    assert.strictEqual(expiredInvoice.status, 'EXPIRED')
+    assert.strictEqual(expiredInvoice.status, INVOICE_STATUS.EXPIRED)
   }).timeout(10000)
 
   it('Invoice expires when confirmations not reached', async () => {
-    const expiredPromise = resolveExpiration(server)
+    const expiredPromise = resolveInvoiceStatus(server, INVOICE_STATUS.EXPIRED)
     await server.newInvoice({ amount: 0.00001, secs: 2, requiredConfirmations: 3 })
     await mineBlocks(2)
     const expiredInvoice = await expiredPromise

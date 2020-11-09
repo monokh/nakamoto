@@ -2,10 +2,11 @@
   "name": "btc-invoice-server",
   "version": "0.0.1",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "build": "webpack -o dist/",
-    "test": "mocha --timeout 5000"
+    "test": "run-s test:env test:integration",
+    "test:env": "docker-compose -f test/docker-compose.yml up -d && sleep 10",
+    "test:integration": "mocha --timeout 5000"
   },
   "repository": {
     "type": "git",
@@ -27,8 +28,6 @@
   },
   "devDependencies": {
     "mocha": "^8.2.0",
-    "stream-browserify": "^3.0.0",
-    "webpack": "^5.3.2",
-    "webpack-cli": "^4.1.0"
+    "npm-run-all": "^4.1.5"
   }
 }
