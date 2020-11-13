@@ -1,6 +1,6 @@
 {
   "name": "btc-invoice-server",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
