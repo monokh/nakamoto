@@ -1,4 +1,4 @@
-# BTC Invoice Server <img src="https://raw.githubusercontent.com/monokh/btc-invoice-server/master/icon.png" />
+# BTC Invoice Server <img align="right" src="https://raw.githubusercontent.com/monokh/btc-invoice-server/master/icon.png" height="64px" />
 
 [![GITHUB](https://github.com/monokh/btc-invoice-server/workflows/build-test/badge.svg)](https://github.com/monokh/btc-invoice-server/actions)
 [![NPM](https://img.shields.io/npm/v/btc-invoice-server)](https://www.npmjs.com/package/btc-invoice-server)
