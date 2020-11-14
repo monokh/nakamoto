@@ -1,6 +1,8 @@
 # BTC Invoice Server
 
-A javascript library for handling bitcoin payment invoices.
+[![NPM](https://img.shields.io/npm/v/btc-invoice-server?style=for-the-badge)](https://www.npmjs.com/package/btc-invoice-server)
+
+A javascript library for handling bitcoin payments in your applications without using a third party service.
 
 ## Why
 
