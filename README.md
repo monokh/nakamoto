@@ -1,6 +1,7 @@
-# BTC Invoice Server
+# BTC Invoice Server <img src="https://raw.githubusercontent.com/monokh/btc-invoice-server/master/icon.png" />
 
-[![NPM](https://img.shields.io/npm/v/btc-invoice-server?style=for-the-badge)](https://www.npmjs.com/package/btc-invoice-server)
+[![GITHUB](https://github.com/monokh/btc-invoice-server/workflows/build-test/badge.svg)](https://github.com/monokh/btc-invoice-server/actions)
+[![NPM](https://img.shields.io/npm/v/btc-invoice-server)](https://www.npmjs.com/package/btc-invoice-server)
 
 A javascript library for handling bitcoin payments in your applications without using a third party service.
 

@@ -36,7 +36,6 @@ function resolveInvoiceStatus(
 ): Promise<Invoice> {
   return new Promise((resolve) => {
     server.on("invoice_update", (invoice) => {
-      console.log(invoice);
       if (invoice.status === status) resolve(invoice);
     });
   });

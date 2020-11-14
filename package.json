@@ -1,7 +1,7 @@
 {
   "name": "btc-invoice-server",
   "version": "0.1.1",
-  "description": "",
+  "description": "Handle bitcoin payments in your application without using a third party service.",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "scripts": {
@@ -13,11 +13,18 @@
     "tslint": "tslint -c tslint.json 'src/**/*.ts'",
     "prettier": "prettier --write ."
   },
+  "keywords": [
+    "bitcoin",
+    "invoice",
+    "server",
+    "btc",
+    "payments"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/monokh/btc-invoice-server.git"
   },
-  "author": "",
+  "author": "monokh",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/monokh/btc-invoice-server/issues"
