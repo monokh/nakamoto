@@ -1,6 +1,6 @@
 {
   "name": "btc-invoice-server",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Handle bitcoin payments in your application without using a third party service.",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
