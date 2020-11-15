@@ -1,10 +1,14 @@
 {
   "name": "btc-invoice-server",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Handle bitcoin payments in your application without using a third party service.",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
-  "files": ["src", "types", "dist"],
+  "files": [
+    "src",
+    "types",
+    "dist"
+  ],
   "scripts": {
     "build": "rimraf ./dist && tsc",
     "test": "run-s test:env test:integration",
