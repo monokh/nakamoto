@@ -1,7 +1,7 @@
-# BTC Invoice Server <img align="right" src="https://raw.githubusercontent.com/monokh/btc-invoice-server/master/icon.png" height="64px" />
+# Nakamoto Bitcoin Invoice Server <img align="right" src="https://raw.githubusercontent.com/monokh/nakamoto/master/icon.png" height="64px" />
 
-[![GITHUB](https://github.com/monokh/btc-invoice-server/workflows/build-test/badge.svg)](https://github.com/monokh/btc-invoice-server/actions)
-[![NPM](https://img.shields.io/npm/v/btc-invoice-server)](https://www.npmjs.com/package/btc-invoice-server)
+[![GITHUB](https://github.com/monokh/nakamoto/workflows/build-test/badge.svg)](https://github.com/monokh/nakamoto/actions)
+[![NPM](https://img.shields.io/npm/v/nakamoto)](https://www.npmjs.com/package/nakamoto)
 
 A javascript library for handling bitcoin payments in your applications without using a third party service.
 
@@ -17,12 +17,12 @@ There are only a few measly tests. You are definitely entering "send all my bitc
 
 ## Installation
 
-`npm install btc-invoice-server`
+`npm install nakamoto`
 
 ## Example
 
 ```js
-const { InvoiceServer, EsploraClient } = require("btc-invoice-server");
+const { InvoiceServer, EsploraClient } = require("nakamoto");
 
 // Setup the server
 const blockchainClient = new EsploraClient(
