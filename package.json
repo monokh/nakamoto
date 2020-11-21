@@ -1,6 +1,6 @@
 {
   "name": "nakamoto",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Handle bitcoin payments in your application without using a third party service.",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
